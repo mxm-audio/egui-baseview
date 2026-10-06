@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "egui-baseview"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Billy Messenger <billydm@noreply.codeberg.org>"]
 build = false
 autolib = false
