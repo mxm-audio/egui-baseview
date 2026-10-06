@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "egui-baseview"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Billy Messenger <billydm@noreply.codeberg.org>"]
 build = false
 autolib = false
@@ -75,7 +75,7 @@ name = "zoom_factor"
 path = "examples/zoom_factor.rs"
 
 [dependencies.baseview]
-version = "0.3.1"
+version = "0.3.4"
 
 [dependencies.copypasta]
 version = "0.10"

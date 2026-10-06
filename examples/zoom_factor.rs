@@ -5,6 +5,15 @@ const WINDOW_SIZE: LogicalSize<f32> = LogicalSize::new(300.0, 250.0);
 const MIN_WINDOW_SIZE: LogicalSize<f32> = LogicalSize::new(200.0, 150.0);
 
 fn main() {
+    // Used as a workaround for https://github.com/RustAudio/baseview/issues/321
+    //
+    // # Safety
+    //
+    // ONLY call this when running the application in standalone mode. Do *NOT* call this
+    // when running as a plugin that is loaded into a host. For more information, see:
+    // https://docs.rs/baseview/0.3.4/baseview/fn.assume_standalone_in_process.html
+    unsafe { baseview::assume_standalone_in_process() };
+
     EguiWindow::create(
         EguiWindowSettings::new()
             .with_title("egui-baseview zoom factor")

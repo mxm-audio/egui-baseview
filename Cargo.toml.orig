@@ -1,6 +1,6 @@
 [package]
 name = "egui-baseview"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 authors = ["Billy Messenger <billydm@noreply.codeberg.org>"]
 repository = "https://codeberg.org/RustAudio/egui-baseview"
@@ -23,7 +23,7 @@ tracing = ["dep:tracing", "baseview/tracing"]
 log = ["dep:log"]
 
 [dependencies]
-baseview = "0.3.1"
+baseview = "0.3.4"
 raw-window-handle = "0.6"
 egui = { version = "0.36.1", default-features = false, features = ["bytemuck"] }
 egui_glow = { version = "0.36.1", features = ["x11"], optional = true }
