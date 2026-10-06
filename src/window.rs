@@ -1,7 +1,27 @@
 use std::cell::{Cell, RefCell};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+/// Native path-backed handle used for egui's dropped-file input.
+///
+/// MXM PATCH: baseview 0.3 already delivers cross-platform file-drop events, but egui-baseview
+/// 0.7 ignored every drag variant. Keep the adapter here, with no platform-specific event source.
+#[derive(Debug)]
+struct NativeFile {
+    path: PathBuf,
+}
+
+impl egui::DroppedFile for NativeFile {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    fn bytes(&self) -> Result<Vec<u8>, String> {
+        std::fs::read(&self.path).map_err(|error| error.to_string())
+    }
+}
 
 use baseview::dpi::{LogicalPosition, LogicalSize, Size};
 use baseview::{
@@ -844,6 +864,67 @@ impl<A: App> WindowHandler for EguiWindow<A> {
                     self.pointer_logical_pos.set(None);
                     egui_input.events.push(egui::Event::PointerGone);
                 }
+                // MXM PATCH: translate baseview's native file drag into egui RawInput. The pointer
+                // update matters because egui assigns a drop to whichever target contains it.
+                baseview::MouseEvent::DragEntered {
+                    position,
+                    modifiers,
+                    data,
+                }
+                | baseview::MouseEvent::DragMoved {
+                    position,
+                    modifiers,
+                    data,
+                } => {
+                    update_modifiers(&self.modifiers, modifiers, &mut egui_input);
+                    let logical_pos: LogicalPosition<f32> = position.to_logical(
+                        self.system_scale_factor.get()
+                            * self.inner.borrow().egui_ctx.zoom_factor() as f64,
+                    );
+                    let pos = pos2(logical_pos.x, logical_pos.y);
+                    self.pointer_logical_pos.set(Some(pos));
+                    egui_input.events.push(egui::Event::PointerMoved(pos));
+                    egui_input.hovered_files.clear();
+                    if let baseview::DropData::Files(paths) = data {
+                        egui_input
+                            .hovered_files
+                            .extend(paths.iter().cloned().map(|path| egui::HoveredFile {
+                                path: Some(path),
+                                mime: String::new(),
+                            }));
+                        if !paths.is_empty() {
+                            return_status = EventStatus::AcceptDrop(baseview::DropEffect::Copy);
+                        }
+                    }
+                }
+                baseview::MouseEvent::DragLeft => {
+                    egui_input.hovered_files.clear();
+                }
+                baseview::MouseEvent::DragDropped {
+                    position,
+                    modifiers,
+                    data,
+                } => {
+                    update_modifiers(&self.modifiers, modifiers, &mut egui_input);
+                    let logical_pos: LogicalPosition<f32> = position.to_logical(
+                        self.system_scale_factor.get()
+                            * self.inner.borrow().egui_ctx.zoom_factor() as f64,
+                    );
+                    let pos = pos2(logical_pos.x, logical_pos.y);
+                    self.pointer_logical_pos.set(Some(pos));
+                    egui_input.events.push(egui::Event::PointerMoved(pos));
+                    egui_input.hovered_files.clear();
+                    if let baseview::DropData::Files(paths) = data {
+                        egui_input.dropped_files.extend(
+                            paths.iter().cloned().map(|path| {
+                                Arc::new(NativeFile { path }) as egui::DroppedFileHandle
+                            }),
+                        );
+                        if !paths.is_empty() {
+                            return_status = EventStatus::AcceptDrop(baseview::DropEffect::Copy);
+                        }
+                    }
+                }
                 _ => do_repaint = false,
             },
             baseview::Event::Keyboard(event) => {
@@ -951,11 +1032,15 @@ impl<A: App> WindowHandler for EguiWindow<A> {
                 }
             }
             baseview::Event::Mouse(_) => {
-                let egui_ctx = &self.inner.borrow().egui_ctx;
-                if egui_ctx.egui_is_using_pointer() || egui_ctx.egui_wants_pointer_input() {
-                    EventStatus::Captured
+                if matches!(return_status, EventStatus::AcceptDrop(_)) {
+                    return_status
                 } else {
-                    EventStatus::Ignored
+                    let egui_ctx = &self.inner.borrow().egui_ctx;
+                    if egui_ctx.egui_is_using_pointer() || egui_ctx.egui_wants_pointer_input() {
+                        EventStatus::Captured
+                    } else {
+                        EventStatus::Ignored
+                    }
                 }
             }
             baseview::Event::Window(_) => EventStatus::Captured,
