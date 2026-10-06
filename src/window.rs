@@ -999,6 +999,7 @@ impl<A: App> WindowHandler for EguiWindow<A> {
                         .unwrap()
                         .focused = Some(true);
 
+                    *self.repaint_after.lock().unwrap() = Some(Instant::now());
                     self.inner.borrow().egui_ctx.request_repaint();
                 }
                 baseview::WindowEvent::Unfocused => {
