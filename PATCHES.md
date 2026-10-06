@@ -1,6 +1,6 @@
-# MXM patch set for egui-baseview 0.7.1
+# MXM patch set for egui-baseview 0.7.2
 
-Upstream crate: `egui-baseview 0.7.1` (0.7.0 until the 2026-10-06 refresh below), MIT OR Apache-2.0. The upstream README and both licence texts
+Upstream crate: `egui-baseview 0.7.2` (0.7.0, then 0.7.1, until the 2026-10-06 refreshes below), MIT OR Apache-2.0. The upstream README and both licence texts
 remain unchanged. `screenshot.png` from the published package is intentionally omitted: it is not
 needed to build and the software repository carries no third-party image assets.
 
@@ -45,3 +45,11 @@ background task executor.
   unchanged. baseview 0.3.4 keeps the drag variants and `DropData::Files`. Checked:
   `cargo check --no-default-features --features tracing,wgpu` on Windows, no warnings; every editor
   consumer is built with the rest of the refresh.
+- **2026-10-06: 0.7.1 → 0.7.2, the same day.** Upstream published 0.7.2 while the 0.7.1 fork was
+  being released, and a fork patch only applies while its version is the one the resolver picks:
+  relocking the plugins chose crates.io's 0.7.2 and listed this fork under `[[patch.unused]]`, so
+  the drag-and-drop patch silently left the build. 0.7.2 adds one line (`src/window.rs`: a repaint
+  is scheduled on resize) and still ignores the four drag variants, so the `MXM PATCH` hunks were
+  reapplied; they applied unchanged. **When upstream publishes a newer 0.7.x, refresh this fork
+  before relocking any plugin**, and check that no `Cargo.lock` lists it under `[[patch.unused]]`
+  (`python ws.py status` in the workspace warns).
