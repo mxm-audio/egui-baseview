@@ -76,6 +76,8 @@ path = "examples/zoom_factor.rs"
 
 [dependencies.baseview]
 version = "0.3.4"
+git = "https://github.com/mxm-audio/baseview"
+branch = "main"
 
 [dependencies.copypasta]
 version = "0.10"

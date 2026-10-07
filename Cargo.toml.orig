@@ -23,7 +23,7 @@ tracing = ["dep:tracing", "baseview/tracing"]
 log = ["dep:log"]
 
 [dependencies]
-baseview = "0.3.4"
+baseview = { version = "0.3.4", git = "https://github.com/mxm-audio/baseview", branch = "main" }
 raw-window-handle = "0.6"
 egui = { version = "0.36.1", default-features = false, features = ["bytemuck"] }
 egui_glow = { version = "0.36.1", features = ["x11"], optional = true }

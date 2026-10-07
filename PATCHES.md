@@ -26,6 +26,17 @@ It adds no platform-specific code or event source. Baseview remains responsible 
 and macOS native delivery. The sampler's editor consumes only file paths and performs all I/O on its
 background task executor.
 
+## baseview from the MXM fork
+
+**File:** `Cargo.toml` (and `Cargo.toml.orig`), the `baseview` dependency.
+
+baseview is taken from [mxm-audio/baseview](https://github.com/mxm-audio/baseview), its 0.3.6 plus
+the patches in its own `PATCHES.md`, rather than from crates.io (2026-10-07). Its Windows windows draw
+on a frame clock a busy host cannot starve: upstream drew only on `WM_TIMER`, which Windows withholds
+while anything else is queued, so MXM editors drew white in MXM Player and ignored the mouse in
+newDAWn while it played. Nothing else in the collection depends on baseview, so this one dependency
+carries the fix to every plugin. When the baseview fork is dropped, this goes back to crates.io.
+
 ## Refresh/drop procedure
 
 1. Extract a new published egui-baseview over this folder, retaining this file.
@@ -34,6 +45,7 @@ background task executor.
 3. If it does, remove the root `[patch.crates-io]` entry and this directory, then run the native
    sampler drop gate on Windows, Linux and macOS.
 4. Otherwise reapply only the `MXM PATCH` hunks and build every editor consumer.
+5. Keep the `baseview` dependency on the MXM fork (above) unless that fork is being dropped too.
 
 ## Refreshes
 
