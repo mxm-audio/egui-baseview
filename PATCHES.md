@@ -37,6 +37,23 @@ while anything else is queued, so MXM editors drew white in MXM Player and ignor
 newDAWn while it played. Nothing else in the collection depends on baseview, so this one dependency
 carries the fix to every plugin. When the baseview fork is dropped, this goes back to crates.io.
 
+## Keys the app uses, asked
+
+**Files:** `src/window.rs`, `src/lib.rs`; every hunk contains `MXM PATCH (*Keys the app uses, asked*)`.
+
+Upstream answers baseview `Ignored` for every key while egui wants no keyboard input, so that "DAW
+shortcuts (spacebar, etc.) pass through", and `Captured` for every key while it does. Neither says
+which keys the app uses: an MXM editor reads S, D, F and the arrows with no widget focused, and once
+the baseview fork gives ignored keys to the host (*Keys the editor ignores go to the host*), the
+host would act on them too. And egui wants keyboard input whenever any widget has its focus, a
+clicked knob as much as a text field (Bitwig, 2026-10-16: a clicked control kept Space from it).
+
+The patch adds `KeyCapture::Ask(KeyClaim)`: a key is `Captured` while a text field has focus
+(`Context::text_edit_focused`), or if the claim, asked with the window's context, the key as egui
+gets it and the modifiers held, says the app uses it; otherwise `Ignored`. A key egui gets no
+`egui::Key` for is the host's. The other `KeyCapture` variants answer as upstream. nice-plug-egui's
+fork sets it from `EguiNiceSettings::host_keys`.
+
 ## Refresh/drop procedure
 
 1. Extract a new published egui-baseview over this folder, retaining this file.
@@ -46,6 +63,7 @@ carries the fix to every plugin. When the baseview fork is dropped, this goes ba
    sampler drop gate on Windows, Linux and macOS.
 4. Otherwise reapply only the `MXM PATCH` hunks and build every editor consumer.
 5. Keep the `baseview` dependency on the MXM fork (above) unless that fork is being dropped too.
+6. Reapply *Keys the app uses, asked* unless upstream lets an app say which keys it uses.
 
 ## Refreshes
 

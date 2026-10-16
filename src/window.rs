@@ -336,6 +336,32 @@ pub enum KeyCapture {
     CaptureKeys(Vec<keyboard_types::Key>),
     /// All keys except the given ones will be captured from the host.
     IgnoreKeys(Vec<keyboard_types::Key>),
+    /// MXM PATCH (*Keys the app uses, asked*): the keys [`KeyClaim`] says the app uses, and every
+    /// key while a text field has focus; the rest are the host's. Not every key while egui wants
+    /// keyboard input: egui wants it while any widget has its focus, a knob clicked as much as a
+    /// text field (Bitwig, 2026-10-16: a clicked control kept Space from the host).
+    Ask(KeyClaim),
+}
+
+/// MXM PATCH (*Keys the app uses, asked*): whether the app uses a key, asked with the window's
+/// context, the key as egui gets it and the modifiers held. A key egui gets no [`egui::Key`] for is
+/// the host's.
+#[derive(Clone)]
+pub struct KeyClaim(pub std::sync::Arc<ClaimsKey>);
+
+/// What [`KeyClaim`] asks.
+pub type ClaimsKey = dyn Fn(&egui::Context, egui::Key, egui::Modifiers) -> bool + Send + Sync;
+
+impl std::fmt::Debug for KeyClaim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("KeyClaim")
+    }
+}
+
+impl PartialEq for KeyClaim {
+    fn eq(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
 }
 
 struct EguiWindowInner<A: App> {
@@ -988,6 +1014,8 @@ impl<A: App> WindowHandler for EguiWindow<A> {
                             return_status = EventStatus::Ignored
                         }
                     }
+                    // Answered below, once egui has the event.
+                    KeyCapture::Ask(_) => {}
                 }
             }
             baseview::Event::Window(event) => match event {
@@ -1023,9 +1051,22 @@ impl<A: App> WindowHandler for EguiWindow<A> {
         // For keyboard events, also check if egui actually wants keyboard input
         // This allows DAW shortcuts (spacebar, etc.) to pass through when no text field is focused
         match &event {
-            baseview::Event::Keyboard(_) => {
-                let egui_ctx = &self.inner.borrow().egui_ctx;
-                if return_status == EventStatus::Captured && !egui_ctx.egui_wants_keyboard_input() {
+            baseview::Event::Keyboard(event) => {
+                let inner = self.inner.borrow();
+                let egui_ctx = &inner.egui_ctx;
+                if let KeyCapture::Ask(claim) = &inner.frame.key_capture {
+                    // MXM PATCH (*Keys the app uses, asked*)
+                    let claimed = egui_ctx.text_edit_focused()
+                        || crate::translate::translate_virtual_key(&event.key)
+                            .is_some_and(|key| (claim.0)(egui_ctx, key, self.modifiers.get()));
+                    if claimed {
+                        EventStatus::Captured
+                    } else {
+                        EventStatus::Ignored
+                    }
+                } else if return_status == EventStatus::Captured
+                    && !egui_ctx.egui_wants_keyboard_input()
+                {
                     EventStatus::Ignored
                 } else {
                     return_status
