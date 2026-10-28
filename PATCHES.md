@@ -51,8 +51,12 @@ clicked knob as much as a text field (Bitwig, 2026-10-16: a clicked control kept
 The patch adds `KeyCapture::Ask(KeyClaim)`: a key is `Captured` while a text field has focus
 (`Context::text_edit_focused`), or if the claim, asked with the window's context, the key as egui
 gets it and the modifiers held, says the app uses it; otherwise `Ignored`. A key egui gets no
-`egui::Key` for is the host's. The other `KeyCapture` variants answer as upstream. nice-plug-egui's
-fork sets it from `EguiNiceSettings::host_keys`.
+`egui::Key` for is the host's. **A key the app does not use is the host's alone**: egui never sees
+it pressed, so it acts in the host and nowhere else. egui clicks the widget with its focus on Space,
+and a clicked button keeps the focus, so the host's Space turned it off again (DaVinci Resolve,
+2026-10-28: Space started playback and turned the EQ's Find off). Its release still goes in, so a
+key taken when pressed is let go however the modifiers changed meanwhile. The other `KeyCapture`
+variants answer as upstream. nice-plug-egui's fork sets it from `EguiNiceSettings::host_keys`.
 
 ## Refresh/drop procedure
 

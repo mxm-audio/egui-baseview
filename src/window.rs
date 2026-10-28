@@ -547,6 +547,22 @@ impl<A: App> EguiWindow<A> {
             host,
         )
     }
+
+    /// MXM PATCH (*Keys the app uses, asked*): under [`KeyCapture::Ask`], whether `key` is the
+    /// app's: every key while a text field has focus, else the ones its claim says it uses, with
+    /// the modifiers held; `None` under the other variants.
+    fn claims(&self, key: &keyboard_types::Key) -> Option<bool> {
+        let inner = self.inner.borrow();
+        let KeyCapture::Ask(claim) = &inner.frame.key_capture else {
+            return None;
+        };
+        let egui_ctx = &inner.egui_ctx;
+        Some(
+            egui_ctx.text_edit_focused()
+                || crate::translate::translate_virtual_key(key)
+                    .is_some_and(|key| (claim.0)(egui_ctx, key, self.modifiers.get())),
+        )
+    }
 }
 
 /// Update the pressed key modifiers when a mouse event has sent a new set of modifiers.
@@ -960,6 +976,15 @@ impl<A: App> WindowHandler for EguiWindow<A> {
 
                 let modifiers = self.modifiers.get();
 
+                // MXM PATCH (*Keys the app uses, asked*): a key the app does not use is the
+                // host's alone. egui never sees it pressed, so the host's Space does not click the
+                // button last clicked, which keeps egui's focus (DaVinci Resolve, 2026-10-28: Space
+                // started playback and turned Find off). Its release still goes in, so a key
+                // taken when pressed is let go however the modifiers changed meanwhile.
+                if pressed && self.claims(&event.key) == Some(false) {
+                    return EventStatus::Ignored;
+                }
+
                 if let Some(key) = crate::translate::translate_virtual_key(&event.key) {
                     egui_input.events.push(egui::Event::Key {
                         key,
@@ -1052,21 +1077,17 @@ impl<A: App> WindowHandler for EguiWindow<A> {
         // This allows DAW shortcuts (spacebar, etc.) to pass through when no text field is focused
         match &event {
             baseview::Event::Keyboard(event) => {
-                let inner = self.inner.borrow();
-                let egui_ctx = &inner.egui_ctx;
-                if let KeyCapture::Ask(claim) = &inner.frame.key_capture {
-                    // MXM PATCH (*Keys the app uses, asked*)
-                    let claimed = egui_ctx.text_edit_focused()
-                        || crate::translate::translate_virtual_key(&event.key)
-                            .is_some_and(|key| (claim.0)(egui_ctx, key, self.modifiers.get()));
-                    if claimed {
+                // MXM PATCH (*Keys the app uses, asked*)
+                if let Some(claimed) = self.claims(&event.key) {
+                    return if claimed {
                         EventStatus::Captured
                     } else {
                         EventStatus::Ignored
-                    }
-                } else if return_status == EventStatus::Captured
-                    && !egui_ctx.egui_wants_keyboard_input()
-                {
+                    };
+                }
+                let inner = self.inner.borrow();
+                let egui_ctx = &inner.egui_ctx;
+                if return_status == EventStatus::Captured && !egui_ctx.egui_wants_keyboard_input() {
                     EventStatus::Ignored
                 } else {
                     return_status
